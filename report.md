@@ -2,6 +2,10 @@ PROPOSAL FOR:
 
 **Mental Health application that keeps track of events, positive or negative, and reacts/adapts to the user and their needs**
 
+**GitHub Repository:** https://github.com/soumetsu/mental-health-application
+
+**GitHub Commit:** https://github.com/soumetsu/mental-health-application/commit/d1ca9d5716b57fa12c0473ccf9983ad4d76b1a43
+
 **Figma Draft:** https://www.figma.com/design/2RAqBd1XjJxep6rhTSN6yB/Untitled?node-id=0-1&t=s3wM32ATQuv2U47V-1
 The figma draft here isnt the full design at all, but rather a flow and skeleton of how the app will work. I plan to flesh this out in a full mockup/prototype, and apply this to the app (as well as have the agent review this).
 
@@ -19,7 +23,7 @@ The app itself will focus on the user's mental health through check-ups. It can 
 Another key feature will be an event logger for positive or negative events. It will allow the user to record events and view them later on a calendar (color coded). This will be important in determining the user's needs and the next steps for what the app should do.
 
 ## Exercises
-The app will also include short exercises such as breathing or calming exercises, and more. The user will be able to choose whether to start an exercise, rather than being forced into one; the most it'll do is recommend an exercise.
+The app will also include short exercises such as breathing or calming exercises, and more. The user will be able to choose whether to start an exercise, rather than being forced into one; the most itll do is recommend an exercise.
 
 ## Other Notes:
 I still need to flesh out how much the app should be further personalized, such as the theme or the dashboards changing based on the user's needs (feeling positive or negative). 

@@ -3,7 +3,6 @@ PROPOSAL FOR:
 **Mental Health application that keeps track of events, positive or negative, and reacts/adapts to the user and their needs**
 
 **GitHub Repository:** https://github.com/soumetsu/mental-health-application
-
 **GitHub Commit:** https://github.com/soumetsu/mental-health-application/commit/d1ca9d5716b57fa12c0473ccf9983ad4d76b1a43
 
 **Figma Draft:** https://www.figma.com/design/2RAqBd1XjJxep6rhTSN6yB/Untitled?node-id=0-1&t=s3wM32ATQuv2U47V-1
@@ -41,3 +40,17 @@ For personalization, the app should have a hidden "score" or value(s) that dicta
 - **R3, R4:** Users can skip, stop, change direction, and choose whether to follow a recommendation.
 - **D1, D5:** Personalization will use saved history while keeping the interface simple and user-controlled.
 - **D6:** The interface will use calm visuals and neutral, non-judgmental language.
+
+## R&D Exercise Requirements
+
+The first exercise milestone implements two user-chosen skills: 5-4-3-2-1 grounding and four-count breathing.
+
+- Exercises are suggestions, not diagnoses or automatic interventions. The mouse-click study found no correlation between click speed and state anxiety, so interaction speed will not trigger or personalize an exercise.
+- The STAI source describes present-moment self-report and a validated clinical/research instrument. This prototype keeps its check-ins short and non-diagnostic rather than reproducing or scoring the STAI.
+- The DBT mobile-app study supports making relevant skills available when a user wants them and recording skill use for later reflection. It also emphasizes ease of use, perceived relevance, and reliable operation.
+- The grounding flow follows the five senses in order: five things seen, four felt or touched, three heard, two smelled, and one tasted. Each prompt appears separately and the user chooses when to continue.
+- The breathing flow uses four gentle phases: breathe in, pause if comfortable, breathe out, and rest. The app advances the phases internally and never displays seconds, a countdown, or an elapsed duration.
+- Every exercise can be stopped. The breathing screen tells users to return to normal breathing if they feel dizzy, light-headed, or uncomfortable.
+- Starting an exercise creates a private history record. Completing or stopping it updates the record and stores elapsed time internally. The user-facing history shows the exercise, date, status, and optional reflection, with controls to edit the reflection or delete the record.
+- Exercise history is isolated by authenticated user. Stored duration is excluded from browser-facing API contracts and UI.
+

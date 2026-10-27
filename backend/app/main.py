@@ -7,12 +7,14 @@ from fastapi.responses import JSONResponse
 
 from app.config import database_path
 from app.controllers.database import DataAccessError, initialize_database
+from app.controllers.chat import load_support_prompt
 from app.routes import router
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     initialize_database(database_path())
+    load_support_prompt()
     yield
 
 

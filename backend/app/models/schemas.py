@@ -171,6 +171,40 @@ class ExerciseHistoryResponse(BaseModel):
     updated_at: datetime
 
 
+class ChatHistoryMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=1200)
+
+    @field_validator("content")
+    @classmethod
+    def clean_chat_content(cls, value: str) -> str:
+        return value.strip()
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=1200)
+    history: list[ChatHistoryMessage] = Field(default_factory=list, max_length=10)
+
+    @field_validator("message")
+    @classmethod
+    def clean_message(cls, value: str) -> str:
+        return value.strip()
+
+
+class ChatContextUsage(BaseModel):
+    check_ins: int
+    events: int
+    exercises: int
+    questionnaire: bool
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    model: str
+    context_used: ChatContextUsage
+    crisis_response: bool = False
+
+
 class HealthResponse(BaseModel):
     status: Literal["ok"]
     database: Literal["ready"]

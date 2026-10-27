@@ -19,6 +19,9 @@ Initial full-stack prototype implemented on October 27, 2026.
 - Crisis support remains visible regardless of authentication or app state.
 - The exercise area implements user-paced 5-4-3-2-1 grounding and internally paced four-count breathing. Elapsed time is stored privately but never returned to or displayed by the frontend.
 - Exercise history supports create, list, reflection updates, completion/stop updates, and deletion for the signed-in user.
+- A floating chat bubble opens a supportive-reflection window. The backend supplies a bounded seven-day summary of the signed-in user's saved context to Gemini with provider storage disabled.
+- Chat crisis-language handling is local and deterministic, before any Gemini request. Ordinary chat requires `GEMINI_API_KEY` in the ignored root `.env`.
+- The chatbot's introductory copy is configured in `frontend/src/data/chatbot.json` and is reset each time the chat window opens.
 
 ## Setup status
 
@@ -57,6 +60,7 @@ Update this section with exact commands and outcomes after running checks.
 - There is no password reset, verification, MFA, rate limiting, encrypted-at-rest health data, audit trail, export/delete-account flow, or production deployment hardening.
 - Reminder delivery is represented in preferences only; no push/email/SMS service exists.
 - The exercise catalog is static and not medical treatment.
+- The chatbot is not a therapist and has not been clinically validated. No live provider call or chatbot backend test has been run because the API key is intentionally blank.
 - The password minimum and local authentication are suitable only for a class prototype.
 
 ## Suggested next milestone

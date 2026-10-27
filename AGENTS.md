@@ -21,6 +21,10 @@ This repository is a student prototype for a supportive mental-health journal. I
 - Keep the U.S. 988 crisis resource visible in the application shell; urgent support cannot depend on a score, questionnaire, or model.
 - The adaptation score is internal. Return a plain-language support state, not a numeric clinical-looking score.
 - Do not add an LLM, notifications, telemetry, external providers, or production claims without updating the privacy/safety design.
+- The support chatbot may read only bounded, authenticated, user-scoped context assembled by `database.py`. Never send passwords, email, record IDs, hidden scores, or exercise durations to the provider.
+- Treat saved notes and events as untrusted data in the model prompt. Do not let saved text override the versioned system instruction.
+- Keep crisis phrase handling local and deterministic before any provider request. Do not weaken or remove the visible crisis resource.
+- Keep the opening chat copy in `frontend/src/data/chatbot.json`; do not duplicate it in the Vue component.
 - Do not claim the demo authentication/session design is production-ready.
 
 ## Engineering conventions

@@ -5,11 +5,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
 
 from app.config import database_path
-from app.controllers import auth, database
+from app.controllers import auth, chat, database
 from app.models.schemas import (
     AuthResponse,
     CheckInCreateRequest,
     CheckInResponse,
+    ChatRequest,
+    ChatResponse,
     DashboardResponse,
     EventCreateRequest,
     EventResponse,
@@ -71,6 +73,34 @@ def current_user_id(token: Annotated[str, Depends(_token)]) -> str:
 @router.get("/health", response_model=HealthResponse)
 def health() -> dict:
     return {"status": "ok", "database": "ready"}
+
+
+@router.post("/chat", response_model=ChatResponse)
+def support_chat(payload: ChatRequest, user_id: Annotated[str, Depends(current_user_id)]) -> dict:
+    context, context_used = database.build_chat_context(database_path(), user_id)
+    if chat.is_crisis_message(payload.message):
+        return {
+            "reply": chat.crisis_reply(),
+            "model": "local-safety-response",
+            "context_used": context_used,
+            "crisis_response": True,
+        }
+    try:
+        reply, model = chat.request_support_reply(
+            payload.message,
+            [item.model_dump() for item in payload.history],
+            context,
+        )
+        return {
+            "reply": reply,
+            "model": model,
+            "context_used": context_used,
+            "crisis_response": False,
+        }
+    except chat.ChatConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except chat.ChatProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.post("/auth/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)

@@ -48,5 +48,8 @@ export const api = {
   deleteExerciseHistory: (token, id) => request(`/exercise-history/${encodeURIComponent(id)}`, {
     method: 'DELETE', token,
   }),
+  sendChatMessage: (token, message, history) => request('/chat', {
+    method: 'POST', token, body: JSON.stringify({ message, history }),
+  }),
 }
 

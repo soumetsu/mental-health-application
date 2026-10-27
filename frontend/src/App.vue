@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import AuthPanel from './components/AuthPanel.vue'
 import CheckInFlow from './components/CheckInFlow.vue'
+import ChatbotWidget from './components/ChatbotWidget.vue'
 import CrisisSupport from './components/CrisisSupport.vue'
 import EventCalendar from './components/EventCalendar.vue'
 import ExercisePanel from './components/ExercisePanel.vue'
@@ -189,6 +190,7 @@ function finishCheckIn() {
       <button :class="{ active: screen === 'checkin' }" type="button" @click="screen = 'checkin'"><span aria-hidden="true">✓</span>Check-in</button>
       <button :class="{ active: screen === 'exercises' }" type="button" @click="screen = 'exercises'"><span aria-hidden="true">◌</span>Exercises</button>
     </nav>
+    <ChatbotWidget v-if="user && dashboard && screen !== 'onboarding'" :token="token" />
   </div>
 
   <div v-if="showEventForm" class="modal-backdrop" @click.self="showEventForm = false">

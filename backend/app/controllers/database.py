@@ -395,6 +395,68 @@ def delete_exercise_history(database_path: Path, user_id: str, history_id: str) 
         raise DataAccessError("Could not delete exercise history") from exc
 
 
+def build_chat_context(database_path: Path, user_id: str) -> tuple[dict, dict]:
+    """Return bounded, user-scoped context without secrets, IDs, or hidden durations."""
+    user = get_user(database_path, user_id)
+    questionnaire = get_questionnaire(database_path, user_id)
+    checkins = list_checkins(database_path, user_id, 30)
+    events = list_events(database_path, user_id, limit=100)
+    exercises = list_exercise_history(database_path, user_id, 50)
+    today = date.today()
+    cutoff = today - timedelta(days=7)
+
+    recent_checkins = [
+        {
+            "day": str(item["created_at"])[:10],
+            "mood": item["mood"],
+            "energy": item["energy"],
+            "note": item["note"],
+            "tags": item["tags"],
+        }
+        for item in checkins
+        if datetime.fromisoformat(str(item["created_at"])).date() >= cutoff
+    ][:7]
+    recent_events = [
+        {
+            "day": str(item["happened_on"]),
+            "title": item["title"],
+            "details": item["details"],
+            "type": item["valence"],
+            "impact": item["intensity"],
+        }
+        for item in events
+        if date.fromisoformat(str(item["happened_on"])) >= cutoff
+    ][:14]
+    recent_exercises = [
+        {
+            "day": str(item["started_at"])[:10],
+            "exercise": item["exercise_title"],
+            "status": item["status"],
+            "reflection": item["reflection"],
+        }
+        for item in exercises
+        if datetime.fromisoformat(str(item["started_at"])).date() >= cutoff
+    ][:10]
+    context = {
+        "today": today.isoformat(),
+        "display_name": user["display_name"],
+        "preferences": {
+            "common_stressors": questionnaire["stressors"] if questionnaire else [],
+            "support_style": questionnaire["support_style"] if questionnaire else None,
+        },
+        "recent_check_ins": recent_checkins,
+        "recent_events": recent_events,
+        "recent_exercises": recent_exercises,
+    }
+    usage = {
+        "check_ins": len(recent_checkins),
+        "events": len(recent_events),
+        "exercises": len(recent_exercises),
+        "questionnaire": questionnaire is not None,
+    }
+    return context, usage
+
+
 def dashboard_snapshot(database_path: Path, user_id: str) -> dict:
     user = get_user(database_path, user_id)
     checkins = list_checkins(database_path, user_id, 30)

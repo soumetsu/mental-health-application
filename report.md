@@ -54,3 +54,15 @@ The first exercise milestone implements two user-chosen skills: 5-4-3-2-1 ground
 - Starting an exercise creates a private history record. Completing or stopping it updates the record and stores elapsed time internally. The user-facing history shows the exercise, date, status, and optional reflection, with controls to edit the reflection or delete the record.
 - Exercise history is isolated by authenticated user. Stored duration is excluded from browser-facing API contracts and UI.
 
+## Support Chatbot Requirements
+
+- The assistant is a supportive reflection aid, not a therapist, diagnostic tool, or emergency service.
+- Opening the floating chat bubble does not transmit data. Sending a message transmits that message, bounded recent chat history, and a seven-day summary of the signed-in user's saved questionnaire, check-ins, events, and exercise activity to the configured Gemini API.
+- The API key remains backend-only in an ignored `.env` file. The frontend never receives it.
+- Saved notes and events are treated as untrusted data, not instructions to the model.
+- Context excludes email, passwords, record IDs, hidden personalization scores, and internal exercise durations.
+- The model should refer to saved information concretely (for example, "You recorded...") and must not invent missing events or feelings.
+- The assistant offers at most one optional next step and does not auto-start exercises.
+- Possible suicide, self-harm, or immediate-danger language receives a deterministic local crisis response before any provider request.
+- Provider-side interaction storage is disabled for chatbot requests.
+- The prototype keeps its opening chatbot introduction in a small JSON configuration and begins with that introduction whenever the chat bubble is opened.

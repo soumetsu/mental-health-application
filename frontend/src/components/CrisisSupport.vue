@@ -1,8 +1,19 @@
+<script setup>
+import { ref } from 'vue'
+
+const dismissed = ref(false)
+</script>
+
 <template>
-  <aside class="crisis-bar" aria-label="Crisis support">
+  <aside v-if="!dismissed" class="crisis-bar" aria-label="Crisis support">
     <span><strong>Need immediate support?</strong> In the U.S., call or text <strong>988</strong>.</span>
     <a href="https://988lifeline.org/" target="_blank" rel="noreferrer">988 Lifeline</a>
     <span>If there is immediate danger, contact local emergency services.</span>
+    <button class="crisis-close" type="button" aria-label="Close crisis support banner" @click="dismissed = true">×</button>
+  </aside>
+  <aside v-else class="crisis-compact" aria-label="Crisis support">
+    <a href="https://988lifeline.org/" target="_blank" rel="noreferrer">988 Support</a>
+    <button type="button" aria-label="Show crisis support banner" @click="dismissed = false">+</button>
   </aside>
 </template>
 

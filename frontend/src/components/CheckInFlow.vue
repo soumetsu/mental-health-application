@@ -35,7 +35,7 @@ async function finish() {
 
     <div v-if="step === 1" class="question-stage">
       <fieldset class="choice-fieldset">
-        <legend>How does this moment feel?</legend>
+        <legend>How does this moment feel right now?</legend>
         <p>Choose the closest fit. There is no wrong answer.</p>
         <div class="mood-options">
           <label v-for="item in [{v:1,e:'😞',l:'Rough'}, {v:2,e:'😕',l:'Low'}, {v:3,e:'😐',l:'Okay'}, {v:4,e:'🙂',l:'Good'}, {v:5,e:'😊',l:'Bright'}]" :key="item.v">

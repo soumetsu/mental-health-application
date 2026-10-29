@@ -29,6 +29,10 @@ p { line-height: 1.55; }
 
 .crisis-bar { min-height: 36px; padding: 8px 5vw; display: flex; justify-content: center; gap: 18px; align-items: center; background: #26342d; color: #fff; font-size: .78rem; }
 .crisis-bar a { color: #ffe8a4; font-weight: 700; }
+.crisis-close { margin-left: 4px; border: 0; padding: 0 4px; background: transparent; color: #fff; cursor: pointer; font-size: 1.3rem; line-height: 1; }
+.crisis-compact { position: fixed; z-index: 50; top: 8px; right: 8px; display: flex; align-items: center; overflow: hidden; border-radius: 999px; background: #26342d; box-shadow: 0 5px 18px rgba(30, 45, 36, .22); font-size: .72rem; }
+.crisis-compact a { padding: 7px 4px 7px 12px; color: #ffe8a4; font-weight: 800; }
+.crisis-compact button { border: 0; padding: 6px 10px 7px 6px; background: transparent; color: #fff; cursor: pointer; font-weight: 800; }
 .app-shell { min-height: calc(100vh - 36px); }
 .app-header { height: 72px; max-width: 1180px; margin: auto; padding: 0 28px; display: flex; align-items: center; justify-content: space-between; }
 .brand-button { border: 0; background: transparent; font-family: Georgia, serif; font-size: 1.2rem; font-weight: 700; cursor: pointer; }

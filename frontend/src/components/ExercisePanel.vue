@@ -207,7 +207,7 @@ onBeforeUnmount(() => {
           <span v-if="item.id === recommendedId" class="recommendation-label">Suggested for today</span>
           <h2>{{ item.title }}</h2>
           <p>{{ item.summary }}</p>
-          <button class="primary-button small" :disabled="actionBusy" type="button" @click="start(item)">Start if you’d like</button>
+          <button class="primary-button small" :disabled="actionBusy" type="button" @click="start(item)">Start</button>
         </article>
       </div>
 

@@ -190,7 +190,7 @@ function finishCheckIn() {
       <button :class="{ active: screen === 'checkin' }" type="button" @click="screen = 'checkin'"><span aria-hidden="true">✓</span>Check-in</button>
       <button :class="{ active: screen === 'exercises' }" type="button" @click="screen = 'exercises'"><span aria-hidden="true">◌</span>Exercises</button>
     </nav>
-    <ChatbotWidget v-if="user && dashboard && screen !== 'onboarding'" :token="token" />
+    <ChatbotWidget v-if="user && dashboard && screen !== 'onboarding'" :token="token" @navigate="screen = $event" />
   </div>
 
   <div v-if="showEventForm" class="modal-backdrop" @click.self="showEventForm = false">

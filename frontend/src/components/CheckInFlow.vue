@@ -9,6 +9,13 @@ const busy = ref(false)
 const error = ref('')
 const form = reactive({ mood: null, energy: null, note: '', tags: [] })
 const tags = ['work', 'school', 'relationships', 'body', 'rest', 'something else']
+const moodOptions = [
+  { value: 1, label: 'Rough', tone: 'rough' },
+  { value: 2, label: 'Low', tone: 'low' },
+  { value: 3, label: 'Okay', tone: 'okay' },
+  { value: 4, label: 'Good', tone: 'good' },
+  { value: 5, label: 'Bright', tone: 'bright' },
+]
 
 async function finish() {
   busy.value = true
@@ -38,9 +45,9 @@ async function finish() {
         <legend>How does this moment feel right now?</legend>
         <p>Choose the closest fit. There is no wrong answer.</p>
         <div class="mood-options">
-          <label v-for="item in [{v:1,e:'😞',l:'Rough'}, {v:2,e:'😕',l:'Low'}, {v:3,e:'😐',l:'Okay'}, {v:4,e:'🙂',l:'Good'}, {v:5,e:'😊',l:'Bright'}]" :key="item.v">
-            <input v-model.number="form.mood" type="radio" :value="item.v" />
-            <span><b aria-hidden="true">{{ item.e }}</b>{{ item.l }}</span>
+          <label v-for="item in moodOptions" :key="item.value">
+            <input v-model.number="form.mood" type="radio" :value="item.value" />
+            <span :class="`mood-${item.tone}`"><strong>{{ item.label }}</strong></span>
           </label>
         </div>
       </fieldset>

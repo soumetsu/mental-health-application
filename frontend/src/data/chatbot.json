@@ -5,7 +5,8 @@
   "disclosure": "Not therapy or emergency support. When you send, your message and relevant recent journal entries are sent securely to Gemini for this reply.",
   "quickPrompts": [
     "What did I record today?",
-    "Help me reflect on today’s events."
+    "Help me reflect on today’s events.",
+    "Suggest an exercise or check-in."
   ],
   "crisisNote": "In the U.S., call or text 988 for crisis support. If there is immediate danger, contact emergency services."
 }

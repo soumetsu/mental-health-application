@@ -14,6 +14,7 @@ const activeHistoryId = ref('')
 const groundingIndex = ref(0)
 const breathingPhaseIndex = ref(0)
 const breathingRound = ref(0)
+const breathingPaused = ref(false)
 const completedName = ref('')
 const history = ref([])
 const historyBusy = ref(false)
@@ -22,6 +23,8 @@ const error = ref('')
 const editingId = ref('')
 const reflectionDrafts = reactive({})
 let phaseTimer
+let phaseStartedAt = 0
+let phaseRemainingMs = 4000
 
 const breathingPhases = [
   { label: 'Breathe in gently', className: 'inhale' },
@@ -34,6 +37,10 @@ const ordered = computed(() => [...props.exercises].sort(
 ))
 const active = computed(() => props.exercises.find((item) => item.id === activeId.value))
 const currentBreathingPhase = computed(() => breathingPhases[breathingPhaseIndex.value])
+const breathingProgress = computed(() => (
+  (breathingRound.value * breathingPhases.length + breathingPhaseIndex.value)
+  / (breathingPhases.length * 4)
+) * 100)
 const groundingWords = ['five', 'four', 'three', 'two', 'one']
 
 onMounted(loadHistory)
@@ -60,6 +67,8 @@ async function start(item) {
     groundingIndex.value = 0
     breathingPhaseIndex.value = 0
     breathingRound.value = 0
+    breathingPaused.value = false
+    phaseRemainingMs = 4000
     if (item.id === 'box-breathing') scheduleNextBreathingPhase()
   } catch (reason) {
     error.value = reason.message
@@ -70,7 +79,10 @@ async function start(item) {
 
 function scheduleNextBreathingPhase() {
   clearTimeout(phaseTimer)
+  if (breathingPaused.value) return
+  phaseStartedAt = Date.now()
   phaseTimer = setTimeout(async () => {
+    phaseRemainingMs = 4000
     if (breathingPhaseIndex.value === breathingPhases.length - 1) {
       if (breathingRound.value === 3) {
         await finish('completed')
@@ -82,7 +94,18 @@ function scheduleNextBreathingPhase() {
       breathingPhaseIndex.value += 1
     }
     scheduleNextBreathingPhase()
-  }, 4000)
+  }, phaseRemainingMs)
+}
+
+function toggleBreathingPause() {
+  if (breathingPaused.value) {
+    breathingPaused.value = false
+    scheduleNextBreathingPhase()
+    return
+  }
+  phaseRemainingMs = Math.max(0, phaseRemainingMs - (Date.now() - phaseStartedAt))
+  breathingPaused.value = true
+  clearTimeout(phaseTimer)
 }
 
 async function nextGroundingStep() {
@@ -95,6 +118,8 @@ async function nextGroundingStep() {
 
 async function finish(status) {
   clearTimeout(phaseTimer)
+  breathingPaused.value = false
+  phaseRemainingMs = 4000
   if (!activeHistoryId.value) return
   actionBusy.value = true
   const name = active.value?.title || 'Exercise'
@@ -179,12 +204,18 @@ onBeforeUnmount(() => {
 
       <template v-else>
         <p class="eyebrow">Four-count breathing</p>
-        <div class="breathing-orb" :class="currentBreathingPhase.className" aria-hidden="true"></div>
+        <div class="breathing-orb" :class="[currentBreathingPhase.className, { paused: breathingPaused }]" aria-hidden="true"></div>
         <h1 id="exercise-title">{{ currentBreathingPhase.label }}</h1>
         <p>Let the rhythm guide you without forcing the breath. Keep both feet supported if that feels comfortable.</p>
+        <div class="breathing-progress-bar" aria-label="Breathing exercise progress">
+          <span :style="{ width: `${breathingProgress}%` }"></span>
+        </div>
         <div class="breath-progress" aria-label="Breathing cycle progress">
           <i v-for="round in 4" :key="round" :class="{ complete: round - 1 < breathingRound }"></i>
         </div>
+        <button class="secondary-button" type="button" @click="toggleBreathingPause">
+          {{ breathingPaused ? 'Resume' : 'Pause' }}
+        </button>
       </template>
 
       <p class="exercise-safety">Stop and breathe normally if you feel dizzy, light-headed, or uncomfortable.</p>

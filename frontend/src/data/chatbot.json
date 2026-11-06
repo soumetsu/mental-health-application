@@ -3,6 +3,7 @@
   "eyebrow": "Supportive reflection",
   "intro": "I can help you reflect on recent check-ins, events, and exercises. What would feel useful right now?",
   "disclosure": "Not therapy or emergency support. When you send, your message and relevant recent journal entries are sent securely to Gemini for this reply.",
+  "voiceDisclosure": "Voice is optional. Raw audio is not saved by this app, but your browser or operating system may process it to create a transcript.",
   "quickPrompts": [
     "What did I record today?",
     "Help me reflect on today’s events.",

@@ -21,9 +21,11 @@ from app.models.schemas import (
     ExerciseHistoryUpdateRequest,
     HealthResponse,
     LoginRequest,
+    ProfileUpdateRequest,
     QuestionnaireRequest,
     QuestionnaireResponse,
     RegisterRequest,
+    SettingsUpdateRequest,
     UserResponse,
 )
 
@@ -122,6 +124,32 @@ def login(payload: LoginRequest) -> dict:
 @router.get("/auth/me", response_model=UserResponse)
 def me(user_id: Annotated[str, Depends(current_user_id)]) -> dict:
     return database.get_user(database_path(), user_id)
+
+
+@router.put("/profile", response_model=UserResponse)
+def update_profile(
+    payload: ProfileUpdateRequest,
+    user_id: Annotated[str, Depends(current_user_id)],
+) -> dict:
+    try:
+        return database.update_user_profile(database_path(), user_id, payload.model_dump())
+    except database.AccountConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except database.NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.put("/settings", response_model=UserResponse)
+def update_settings(
+    payload: SettingsUpdateRequest,
+    user_id: Annotated[str, Depends(current_user_id)],
+) -> dict:
+    try:
+        return database.update_user_settings(database_path(), user_id, payload.model_dump())
+    except database.AccountConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except database.NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)

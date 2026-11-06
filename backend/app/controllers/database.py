@@ -50,8 +50,21 @@ def initialize_database(database_path: Path) -> None:
         username TEXT NOT NULL UNIQUE COLLATE NOCASE,
         display_name TEXT NOT NULL,
         email TEXT UNIQUE COLLATE NOCASE,
+        bio TEXT NOT NULL DEFAULT '',
+        avatar_key TEXT NOT NULL DEFAULT 'leaf',
+        avatar_image TEXT,
         password_hash TEXT NOT NULL,
         created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS user_preferences (
+        user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        theme TEXT NOT NULL DEFAULT 'sage' CHECK (theme IN ('sage', 'lavender', 'warm')),
+        text_size TEXT NOT NULL DEFAULT 'default' CHECK (text_size IN ('default', 'large')),
+        reduce_motion INTEGER NOT NULL DEFAULT 0 CHECK (reduce_motion IN (0, 1)),
+        high_contrast INTEGER NOT NULL DEFAULT 0 CHECK (high_contrast IN (0, 1)),
+        read_aloud INTEGER NOT NULL DEFAULT 0 CHECK (read_aloud IN (0, 1)),
+        voice_input INTEGER NOT NULL DEFAULT 0 CHECK (voice_input IN (0, 1)),
+        updated_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS questionnaires (
         user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -98,19 +111,57 @@ def initialize_database(database_path: Path) -> None:
     try:
         with _connect(database_path) as connection:
             connection.executescript(schema)
+            user_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(users)").fetchall()
+            }
+            migrations = {
+                "bio": "ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT ''",
+                "avatar_key": "ALTER TABLE users ADD COLUMN avatar_key TEXT NOT NULL DEFAULT 'leaf'",
+                "avatar_image": "ALTER TABLE users ADD COLUMN avatar_image TEXT",
+            }
+            for column, statement in migrations.items():
+                if column not in user_columns:
+                    connection.execute(statement)
+            connection.execute(
+                """INSERT INTO user_preferences (user_id, updated_at)
+                   SELECT id, ? FROM users
+                   WHERE NOT EXISTS (
+                     SELECT 1 FROM user_preferences p WHERE p.user_id = users.id
+                   )""",
+                (_now(),),
+            )
             connection.commit()
     except sqlite3.Error as exc:
         raise DataAccessError("Could not initialize local data") from exc
 
 
 def _user_response(row: sqlite3.Row, has_questionnaire: bool) -> dict:
+    keys = set(row.keys())
     return {
         "id": row["id"],
         "username": row["username"],
         "display_name": row["display_name"],
         "email": row["email"],
+        "bio": row["bio"] if "bio" in keys else "",
+        "avatar_key": row["avatar_key"] if "avatar_key" in keys else "leaf",
+        "avatar_image": row["avatar_image"] if "avatar_image" in keys else None,
+        "theme": row["theme"] if "theme" in keys else "sage",
+        "text_size": row["text_size"] if "text_size" in keys else "default",
+        "reduce_motion": bool(row["reduce_motion"]) if "reduce_motion" in keys else False,
+        "high_contrast": bool(row["high_contrast"]) if "high_contrast" in keys else False,
+        "read_aloud": bool(row["read_aloud"]) if "read_aloud" in keys else False,
+        "voice_input": bool(row["voice_input"]) if "voice_input" in keys else False,
+        "created_at": row["created_at"],
         "has_questionnaire": has_questionnaire,
     }
+
+
+USER_WITH_PREFERENCES = """
+    SELECT u.*, p.theme, p.text_size, p.reduce_motion, p.high_contrast, p.read_aloud, p.voice_input,
+           EXISTS(SELECT 1 FROM questionnaires q WHERE q.user_id = u.id) AS has_questionnaire
+    FROM users u
+    LEFT JOIN user_preferences p ON p.user_id = u.id
+"""
 
 
 def create_user_account(
@@ -120,11 +171,17 @@ def create_user_account(
     try:
         with _connect(database_path) as connection:
             connection.execute(
-                "INSERT INTO users (id, username, display_name, email, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                """INSERT INTO users
+                   (id, username, display_name, email, bio, avatar_key, avatar_image, password_hash, created_at)
+                   VALUES (?, ?, ?, ?, '', 'leaf', NULL, ?, ?)""",
                 (user_id, username, display_name, email, hash_password(password), _now()),
             )
+            connection.execute(
+                "INSERT INTO user_preferences (user_id, updated_at) VALUES (?, ?)",
+                (user_id, _now()),
+            )
             connection.commit()
-            row = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+            row = connection.execute(f"{USER_WITH_PREFERENCES} WHERE u.id = ?", (user_id,)).fetchone()
             return _user_response(row, False)
     except sqlite3.IntegrityError as exc:
         raise AccountConflictError("That username or email is already in use") from exc
@@ -136,8 +193,7 @@ def get_user(database_path: Path, user_id: str) -> dict:
     try:
         with _connect(database_path) as connection:
             row = connection.execute(
-                """SELECT u.*, EXISTS(SELECT 1 FROM questionnaires q WHERE q.user_id = u.id) AS has_questionnaire
-                   FROM users u WHERE u.id = ?""",
+                f"{USER_WITH_PREFERENCES} WHERE u.id = ?",
                 (user_id,),
             ).fetchone()
             if not row:
@@ -151,8 +207,7 @@ def authenticate_user(database_path: Path, username: str, password: str) -> dict
     try:
         with _connect(database_path) as connection:
             row = connection.execute(
-                """SELECT u.*, EXISTS(SELECT 1 FROM questionnaires q WHERE q.user_id = u.id) AS has_questionnaire
-                   FROM users u WHERE username = ? COLLATE NOCASE""",
+                f"{USER_WITH_PREFERENCES} WHERE u.username = ? COLLATE NOCASE",
                 (username,),
             ).fetchone()
             if not row or not verify_password(password, row["password_hash"]):
@@ -160,6 +215,72 @@ def authenticate_user(database_path: Path, username: str, password: str) -> dict
             return _user_response(row, bool(row["has_questionnaire"]))
     except sqlite3.Error as exc:
         raise DataAccessError("Could not authenticate the account") from exc
+
+
+def update_user_profile(database_path: Path, user_id: str, data: dict) -> dict:
+    try:
+        with _connect(database_path) as connection:
+            result = connection.execute(
+                """UPDATE users
+                   SET display_name = ?, email = ?, bio = ?, avatar_key = ?, avatar_image = ?
+                   WHERE id = ?""",
+                (
+                    data["display_name"], data["email"], data["bio"],
+                    data["avatar_key"], data["avatar_image"], user_id,
+                ),
+            )
+            if result.rowcount == 0:
+                raise NotFoundError("Account was not found")
+            connection.execute(
+                """INSERT INTO user_preferences (user_id, theme, updated_at)
+                   VALUES (?, ?, ?)
+                   ON CONFLICT(user_id) DO UPDATE SET
+                     theme = excluded.theme,
+                     updated_at = excluded.updated_at""",
+                (user_id, data["theme"], _now()),
+            )
+            connection.commit()
+        return get_user(database_path, user_id)
+    except sqlite3.IntegrityError as exc:
+        raise AccountConflictError("That email is already in use") from exc
+    except sqlite3.Error as exc:
+        raise DataAccessError("Could not update the profile") from exc
+
+
+def update_user_settings(database_path: Path, user_id: str, data: dict) -> dict:
+    updated_at = _now()
+    try:
+        with _connect(database_path) as connection:
+            result = connection.execute(
+                "UPDATE users SET email = ? WHERE id = ?",
+                (data["email"], user_id),
+            )
+            if result.rowcount == 0:
+                raise NotFoundError("Account was not found")
+            connection.execute(
+                """INSERT INTO user_preferences
+                   (user_id, theme, text_size, reduce_motion, high_contrast, read_aloud, voice_input, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(user_id) DO UPDATE SET
+                     theme = excluded.theme,
+                     text_size = excluded.text_size,
+                     reduce_motion = excluded.reduce_motion,
+                     high_contrast = excluded.high_contrast,
+                     read_aloud = excluded.read_aloud,
+                     voice_input = excluded.voice_input,
+                     updated_at = excluded.updated_at""",
+                (
+                    user_id, data["theme"], data["text_size"], int(data["reduce_motion"]),
+                    int(data["high_contrast"]), int(data["read_aloud"]),
+                    int(data["voice_input"]), updated_at,
+                ),
+            )
+            connection.commit()
+        return get_user(database_path, user_id)
+    except sqlite3.IntegrityError as exc:
+        raise AccountConflictError("That email is already in use") from exc
+    except sqlite3.Error as exc:
+        raise DataAccessError("Could not update settings") from exc
 
 
 def save_questionnaire(database_path: Path, user_id: str, data: dict) -> dict:

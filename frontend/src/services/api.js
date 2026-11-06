@@ -28,6 +28,12 @@ export const api = {
   register: (payload) => request('/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
   login: (payload) => request('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
   me: (token) => request('/auth/me', { token }),
+  updateProfile: (token, payload) => request('/profile', {
+    method: 'PUT', token, body: JSON.stringify(payload),
+  }),
+  updateSettings: (token, payload) => request('/settings', {
+    method: 'PUT', token, body: JSON.stringify(payload),
+  }),
   logout: (token) => request('/auth/logout', { method: 'POST', token }),
   getQuestionnaire: (token) => request('/questionnaire', { token }),
   saveQuestionnaire: (token, payload) => request('/questionnaire', { method: 'PUT', token, body: JSON.stringify(payload) }),

@@ -1,12 +1,16 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import AuthPanel from './components/AuthPanel.vue'
 import CheckInFlow from './components/CheckInFlow.vue'
 import ChatbotWidget from './components/ChatbotWidget.vue'
 import CrisisSupport from './components/CrisisSupport.vue'
 import EventCalendar from './components/EventCalendar.vue'
 import ExercisePanel from './components/ExercisePanel.vue'
+import ProfileAvatar from './components/ProfileAvatar.vue'
+import ProfilePanel from './components/ProfilePanel.vue'
 import QuestionnairePanel from './components/QuestionnairePanel.vue'
+import ReadPageButton from './components/ReadPageButton.vue'
+import SettingsPanel from './components/SettingsPanel.vue'
 import { api } from './services/api'
 
 const token = ref(localStorage.getItem('mindful_token') || '')
@@ -19,10 +23,24 @@ const loading = ref(Boolean(token.value))
 const busy = ref(false)
 const error = ref('')
 const showEventForm = ref(false)
+const profileMenuOpen = ref(false)
 const eventForm = reactive({
   title: '', details: '', valence: 'positive', intensity: 3,
   happened_on: new Date().toISOString().slice(0, 10),
 })
+const headerAvatarSrc = computed(() => {
+  if (user.value?.avatar_image) return user.value.avatar_image
+  const key = ['leaf', 'moon', 'tea', 'fox'].includes(user.value?.avatar_key) ? user.value.avatar_key : 'leaf'
+  return `/avatars/${key}.png`
+})
+
+watch(user, (currentUser) => {
+  const root = document.documentElement
+  root.dataset.theme = currentUser?.theme || 'sage'
+  root.dataset.textSize = currentUser?.text_size || 'default'
+  root.dataset.reduceMotion = String(Boolean(currentUser?.reduce_motion))
+  root.dataset.highContrast = String(Boolean(currentUser?.high_contrast))
+}, { immediate: true, deep: true })
 
 onMounted(async () => {
   if (!token.value) return
@@ -87,6 +105,7 @@ async function loadDashboard() {
 }
 
 async function logOut() {
+  profileMenuOpen.value = false
   try { await api.logout(token.value) } catch { /* Clear the local session regardless. */ }
   clearSession()
 }
@@ -125,18 +144,50 @@ async function refreshDashboard() {
 function finishCheckIn() {
   loadDashboard()
 }
+
+function updateUser(updated) {
+  user.value = updated
+  if (dashboard.value) dashboard.value.display_name = updated.display_name
+}
+
+function openScreen(destination) {
+  profileMenuOpen.value = false
+  screen.value = destination
+}
 </script>
 
 <template>
   <CrisisSupport />
   <div class="app-shell">
     <header v-if="user" class="app-header">
-      <button class="brand-button" type="button" @click="screen = 'dashboard'" aria-label="Mindful Moments home">
+      <button class="brand-button" type="button" @click="openScreen('dashboard')" aria-label="Mindful Moments home">
         <span aria-hidden="true">✦</span> Mindful Moments
       </button>
       <div class="header-actions">
-        <span>Hi, {{ user.display_name }}</span>
-        <button class="text-button" type="button" @click="logOut">Log out</button>
+        <div class="profile-menu" @keydown.esc="profileMenuOpen = false">
+          <button
+            class="profile-menu-button"
+            type="button"
+            :aria-expanded="profileMenuOpen"
+            aria-controls="profile-dropdown"
+            :aria-label="`Open account menu for ${user.display_name}`"
+            @click="profileMenuOpen = !profileMenuOpen"
+          >
+            <img class="header-avatar-image" :src="headerAvatarSrc" alt="" />
+          </button>
+          <button v-if="profileMenuOpen" class="profile-menu-backdrop" type="button" tabindex="-1" aria-hidden="true" @click="profileMenuOpen = false"></button>
+          <section v-if="profileMenuOpen" id="profile-dropdown" class="profile-dropdown" aria-label="Account menu">
+            <button class="profile-dropdown-summary" type="button" @click="openScreen('profile')">
+              <ProfileAvatar :avatar-key="user.avatar_key" :avatar-image="user.avatar_image" />
+              <span><strong>{{ user.display_name }}</strong><small>@{{ user.username }}</small><em>View and edit profile</em></span>
+            </button>
+            <div class="profile-dropdown-actions">
+              <button class="text-button" type="button" @click="openScreen('settings')"><span aria-hidden="true">⚙</span>Settings</button>
+              <ReadPageButton />
+              <button class="text-button danger" type="button" @click="logOut"><span aria-hidden="true">↪</span>Log out</button>
+            </div>
+          </section>
+        </div>
       </div>
     </header>
 
@@ -146,6 +197,23 @@ function finishCheckIn() {
       <QuestionnairePanel v-else-if="screen === 'onboarding'" :busy="busy" :error="error" @save="saveQuestionnaire" />
       <CheckInFlow v-else-if="screen === 'checkin'" :token="token" @cancel="screen = 'dashboard'" @complete="finishCheckIn" />
       <ExercisePanel v-else-if="screen === 'exercises'" :token="token" :exercises="exercises" :recommended-id="dashboard?.recommended_exercise_id" @close="screen = 'dashboard'" />
+      <ProfilePanel
+        v-else-if="screen === 'profile'"
+        :token="token"
+        :user="user"
+        @close="screen = 'dashboard'"
+        @open-settings="screen = 'settings'"
+        @updated="updateUser"
+      />
+      <SettingsPanel
+        v-else-if="screen === 'settings'"
+        :token="token"
+        :user="user"
+        @close="screen = 'dashboard'"
+        @logout="logOut"
+        @open-profile="screen = 'profile'"
+        @updated="updateUser"
+      />
 
       <div v-else-if="dashboard" class="dashboard-page" :data-support-state="dashboard.support_state">
         <section class="dashboard-banner" data-node-id="15:2">
@@ -185,12 +253,18 @@ function finishCheckIn() {
       </div>
     </main>
 
-    <nav v-if="user && dashboard && screen !== 'onboarding'" class="bottom-nav" aria-label="Primary navigation">
+    <nav v-if="user && dashboard && ['dashboard', 'checkin', 'exercises'].includes(screen)" class="bottom-nav" aria-label="Primary navigation">
       <button :class="{ active: screen === 'dashboard' }" type="button" @click="screen = 'dashboard'"><span aria-hidden="true">⌂</span>Home</button>
       <button :class="{ active: screen === 'checkin' }" type="button" @click="screen = 'checkin'"><span aria-hidden="true">✓</span>Check-in</button>
       <button :class="{ active: screen === 'exercises' }" type="button" @click="screen = 'exercises'"><span aria-hidden="true">◌</span>Exercises</button>
     </nav>
-    <ChatbotWidget v-if="user && dashboard && screen !== 'onboarding'" :token="token" @navigate="screen = $event" />
+    <ChatbotWidget
+      v-if="user && dashboard && screen !== 'onboarding'"
+      :token="token"
+      :read-aloud="user.read_aloud"
+      :voice-input="user.voice_input"
+      @navigate="screen = $event"
+    />
   </div>
 
   <div v-if="showEventForm" class="modal-backdrop" @click.self="showEventForm = false">

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from typing import Literal
 
@@ -8,6 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 SupportState = Literal["support", "gentle", "steady", "calm"]
 Valence = Literal["positive", "negative", "neutral"]
+AvatarKey = Literal["leaf", "moon", "tea", "fox"]
+ThemeName = Literal["sage", "lavender", "warm"]
+TextSize = Literal["default", "large"]
 
 
 class UserResponse(BaseModel):
@@ -15,7 +19,26 @@ class UserResponse(BaseModel):
     username: str
     display_name: str
     email: str | None = None
+    bio: str = ""
+    avatar_key: AvatarKey = "leaf"
+    avatar_image: str | None = None
+    theme: ThemeName = "sage"
+    text_size: TextSize = "default"
+    reduce_motion: bool = False
+    high_contrast: bool = False
+    read_aloud: bool = False
+    voice_input: bool = False
+    created_at: datetime
     has_questionnaire: bool = False
+
+
+def _normalize_optional_email(value: str | None) -> str | None:
+    if not value:
+        return None
+    value = value.strip().lower()
+    if "@" not in value or value.startswith("@") or value.endswith("@"):
+        raise ValueError("Enter a valid email address")
+    return value
 
 
 class AuthResponse(BaseModel):
@@ -42,12 +65,50 @@ class RegisterRequest(BaseModel):
     @field_validator("email")
     @classmethod
     def normalize_email(cls, value: str | None) -> str | None:
-        if not value:
+        return _normalize_optional_email(value)
+
+
+class ProfileUpdateRequest(BaseModel):
+    display_name: str = Field(min_length=1, max_length=60)
+    email: str | None = Field(default=None, max_length=120)
+    bio: str = Field(default="", max_length=280)
+    avatar_key: AvatarKey = "leaf"
+    avatar_image: str | None = Field(default=None, max_length=500_000)
+    theme: ThemeName = "sage"
+
+    @field_validator("display_name", "bio", mode="before")
+    @classmethod
+    def clean_text(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str | None) -> str | None:
+        return _normalize_optional_email(value)
+
+    @field_validator("avatar_image")
+    @classmethod
+    def validate_avatar_image(cls, value: str | None) -> str | None:
+        if value is None:
             return None
-        value = value.lower()
-        if "@" not in value or value.startswith("@") or value.endswith("@"):
-            raise ValueError("Enter a valid email address")
+        if not re.fullmatch(r"data:image/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+", value):
+            raise ValueError("Profile photo must be a PNG, JPEG, or WebP image")
         return value
+
+
+class SettingsUpdateRequest(BaseModel):
+    email: str | None = Field(default=None, max_length=120)
+    theme: ThemeName = "sage"
+    text_size: TextSize = "default"
+    reduce_motion: bool = False
+    high_contrast: bool = False
+    read_aloud: bool = False
+    voice_input: bool = False
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str | None) -> str | None:
+        return _normalize_optional_email(value)
 
 
 class LoginRequest(BaseModel):

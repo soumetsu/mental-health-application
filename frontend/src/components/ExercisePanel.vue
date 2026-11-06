@@ -12,9 +12,11 @@ const emit = defineEmits(['close'])
 const activeId = ref('')
 const activeHistoryId = ref('')
 const groundingIndex = ref(0)
+const breathingMode = ref('')
 const breathingPhaseIndex = ref(0)
 const breathingRound = ref(0)
 const breathingPaused = ref(false)
+const breathingHolding = ref(false)
 const completedName = ref('')
 const history = ref([])
 const historyBusy = ref(false)
@@ -37,10 +39,21 @@ const ordered = computed(() => [...props.exercises].sort(
 ))
 const active = computed(() => props.exercises.find((item) => item.id === activeId.value))
 const currentBreathingPhase = computed(() => breathingPhases[breathingPhaseIndex.value])
-const breathingProgress = computed(() => (
-  (breathingRound.value * breathingPhases.length + breathingPhaseIndex.value)
-  / (breathingPhases.length * 4)
-) * 100)
+const breathingProgress = computed(() => {
+  if (breathingMode.value === 'interactive') {
+    return ((breathingRound.value + (breathingHolding.value ? 0.5 : 0)) / 4) * 100
+  }
+  if (breathingMode.value !== 'timer') return 0
+  return (
+    (breathingRound.value * breathingPhases.length + breathingPhaseIndex.value)
+    / (breathingPhases.length * 4)
+  ) * 100
+})
+const interactiveBreathingLabel = computed(() => (
+  breathingHolding.value
+    ? 'Breathe in gently'
+    : breathingRound.value === 0 ? 'Breathe in when ready' : 'Breathe out gently'
+))
 const groundingWords = ['five', 'four', 'three', 'two', 'one']
 
 onMounted(loadHistory)
@@ -65,16 +78,58 @@ async function start(item) {
     activeHistoryId.value = entry.id
     activeId.value = item.id
     groundingIndex.value = 0
+    breathingMode.value = ''
     breathingPhaseIndex.value = 0
     breathingRound.value = 0
     breathingPaused.value = false
+    breathingHolding.value = false
     phaseRemainingMs = 4000
-    if (item.id === 'box-breathing') scheduleNextBreathingPhase()
   } catch (reason) {
     error.value = reason.message
   } finally {
     actionBusy.value = false
   }
+}
+
+function beginBreathing(mode) {
+  clearTimeout(phaseTimer)
+  breathingMode.value = mode
+  breathingPhaseIndex.value = 0
+  breathingRound.value = 0
+  breathingPaused.value = false
+  breathingHolding.value = false
+  phaseRemainingMs = 4000
+  if (mode === 'timer') scheduleNextBreathingPhase()
+}
+
+function chooseBreathingMethod() {
+  clearTimeout(phaseTimer)
+  breathingMode.value = ''
+  breathingPhaseIndex.value = 0
+  breathingRound.value = 0
+  breathingPaused.value = false
+  breathingHolding.value = false
+  phaseRemainingMs = 4000
+}
+
+function startInteractiveInhale(event) {
+  if (breathingMode.value !== 'interactive' || breathingHolding.value || actionBusy.value) return
+  if (event?.pointerId !== undefined) event.currentTarget?.setPointerCapture?.(event.pointerId)
+  breathingHolding.value = true
+}
+
+async function completeInteractiveBreath() {
+  if (breathingMode.value !== 'interactive' || !breathingHolding.value || actionBusy.value) return
+  breathingHolding.value = false
+  if (breathingRound.value === 3) {
+    await finish('completed')
+    return
+  }
+  breathingRound.value += 1
+}
+
+function cancelInteractiveInhale() {
+  breathingHolding.value = false
 }
 
 function scheduleNextBreathingPhase() {
@@ -119,6 +174,8 @@ async function nextGroundingStep() {
 async function finish(status) {
   clearTimeout(phaseTimer)
   breathingPaused.value = false
+  breathingHolding.value = false
+  breathingMode.value = ''
   phaseRemainingMs = 4000
   if (!activeHistoryId.value) return
   actionBusy.value = true
@@ -204,18 +261,92 @@ onBeforeUnmount(() => {
 
       <template v-else>
         <p class="eyebrow">Four-count breathing</p>
-        <div class="breathing-orb" :class="[currentBreathingPhase.className, { paused: breathingPaused }]" aria-hidden="true"></div>
-        <h1 id="exercise-title">{{ currentBreathingPhase.label }}</h1>
-        <p>Let the rhythm guide you without forcing the breath. Keep both feet supported if that feels comfortable.</p>
-        <div class="breathing-progress-bar" aria-label="Breathing exercise progress">
-          <span :style="{ width: `${breathingProgress}%` }"></span>
-        </div>
-        <div class="breath-progress" aria-label="Breathing cycle progress">
-          <i v-for="round in 4" :key="round" :class="{ complete: round - 1 < breathingRound }"></i>
-        </div>
-        <button class="secondary-button" type="button" @click="toggleBreathingPause">
-          {{ breathingPaused ? 'Resume' : 'Pause' }}
-        </button>
+        <template v-if="!breathingMode">
+          <h1 id="exercise-title">Choose how you want to breathe.</h1>
+          <p>Try the hold button at your own pace, or use the four-count timer for a guided rhythm.</p>
+          <div class="breathing-tutorial" aria-label="Hold button tutorial">
+            <div><span aria-hidden="true">1</span><p><strong>Press and hold</strong> while you breathe in.</p></div>
+            <div><span aria-hidden="true">2</span><p><strong>Let go</strong> while you breathe out.</p></div>
+            <div><span aria-hidden="true">3</span><p><strong>Repeat four times.</strong> Take as long as feels comfortable.</p></div>
+          </div>
+          <div class="breathing-method-actions">
+            <div class="hold-method-preview-wrap">
+              <button
+                class="primary-button"
+                aria-describedby="hold-method-preview"
+                type="button"
+                @click="beginBreathing('interactive')"
+              >Try hold-to-breathe</button>
+              <div id="hold-method-preview" class="hold-method-preview" role="tooltip">
+                <div class="hold-preview-animation" aria-hidden="true">
+                  <div class="mouse-hold-demo">
+                    <div class="mouse-shape"><span></span></div>
+                    <span class="press-arrow">↓</span>
+                    <span class="demo-hold-surface">Hold</span>
+                  </div>
+                  <div class="breathing-avatar-demo">
+                    <span class="breath-arrows inhale-arrows">→ <b>←</b></span>
+                    <span class="breath-arrows exhale-arrows">← <b>→</b></span>
+                    <span class="avatar-head"></span>
+                    <span class="avatar-body"></span>
+                  </div>
+                </div>
+                <strong>Hold to breathe in. Release to breathe out.</strong>
+              </div>
+            </div>
+            <button class="secondary-button" type="button" @click="beginBreathing('timer')">Use four-count timer</button>
+          </div>
+        </template>
+
+        <template v-else-if="breathingMode === 'interactive'">
+          <button
+            class="breathing-hold-button"
+            :class="{ holding: breathingHolding }"
+            :aria-pressed="breathingHolding"
+            :disabled="actionBusy"
+            type="button"
+            @pointerdown.prevent="startInteractiveInhale"
+            @pointerup.prevent="completeInteractiveBreath"
+            @pointercancel="cancelInteractiveInhale"
+            @keydown.space.prevent="startInteractiveInhale"
+            @keyup.space.prevent="completeInteractiveBreath"
+            @keydown.enter.prevent="startInteractiveInhale"
+            @keyup.enter.prevent="completeInteractiveBreath"
+          >
+            <span>{{ breathingHolding ? 'Keep holding' : 'Press & hold' }}</span>
+            <small>{{ breathingHolding ? 'Breathe in' : 'Then release to breathe out' }}</small>
+          </button>
+          <h1 id="exercise-title">{{ interactiveBreathingLabel }}</h1>
+          <p>{{ breathingHolding ? 'Keep the button held for as long as your inhale feels comfortable.' : 'Press again when you are ready for the next breath.' }}</p>
+        </template>
+
+        <template v-else>
+          <div class="breathing-orb" :class="[currentBreathingPhase.className, { paused: breathingPaused }]" aria-hidden="true"></div>
+          <h1 id="exercise-title">{{ currentBreathingPhase.label }}</h1>
+          <p>Let the rhythm guide you without forcing the breath. Keep both feet supported if that feels comfortable.</p>
+        </template>
+
+        <template v-if="breathingMode">
+          <div
+            class="breathing-progress-bar"
+            role="progressbar"
+            aria-label="Breathing exercise progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            :aria-valuenow="Math.round(breathingProgress)"
+          >
+            <span :style="{ width: `${breathingProgress}%` }"></span>
+          </div>
+          <div class="breath-progress" :aria-label="`${breathingRound} of 4 breathing rounds complete`">
+            <i v-for="round in 4" :key="round" :class="{ complete: round - 1 < breathingRound }"></i>
+          </div>
+          <div class="breathing-controls">
+            <button v-if="breathingMode === 'timer'" class="secondary-button" type="button" @click="toggleBreathingPause">
+              {{ breathingPaused ? 'Resume' : 'Pause' }}
+            </button>
+            <button class="text-button" type="button" @click="chooseBreathingMethod">Choose another method</button>
+          </div>
+        </template>
       </template>
 
       <p class="exercise-safety">Stop and breathe normally if you feel dizzy, light-headed, or uncomfortable.</p>

@@ -57,5 +57,7 @@ export const api = {
   sendChatMessage: (token, message, history) => request('/chat', {
     method: 'POST', token, body: JSON.stringify({ message, history }),
   }),
+  chatHistory: (token) => request('/chat/history', { token, cache: 'no-store' }),
+  clearChatHistory: (token) => request('/chat/history', { method: 'DELETE', token }),
 }
 

@@ -67,6 +67,23 @@ class DatabaseTests(unittest.TestCase):
         )
         self.assertEqual(database.list_events(self.database_path, other["id"]), [])
 
+    def test_saved_chat_is_bounded_ordered_and_scoped(self) -> None:
+        river = self.user["id"]
+        sky = database.create_user_account(self.database_path, "sky", "Sky", None, "password123")["id"]
+        database.save_chat_turn(self.database_path, sky, "Sky's message", "Sky's reply")
+        for number in range(database.CHAT_TURN_LIMIT + 2):
+            database.save_chat_turn(self.database_path, river, f"Message {number}", f"Reply {number}")
+        database.initialize_database(self.database_path)
+        history = database.list_chat_turns(self.database_path, river)
+        self.assertEqual(len(history), database.CHAT_TURN_LIMIT)
+        self.assertEqual(history[0], {"message": "Message 2", "reply": "Reply 2"})
+        self.assertEqual(history[-1]["message"], f"Message {database.CHAT_TURN_LIMIT + 1}")
+        database.clear_chat_turns(self.database_path, river)
+        self.assertEqual(database.list_chat_turns(self.database_path, river), [])
+        self.assertEqual(database.list_chat_turns(self.database_path, sky), [
+            {"message": "Sky's message", "reply": "Sky's reply"},
+        ])
+
     def test_exercise_history_crud_counts_hidden_duration(self) -> None:
         entry = database.create_exercise_history(
             self.database_path, self.user["id"], "grounding-54321"

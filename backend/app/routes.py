@@ -26,6 +26,7 @@ from app.models.schemas import (
     QuestionnaireResponse,
     RegisterRequest,
     SettingsUpdateRequest,
+    SavedChatTurn,
     UserResponse,
 )
 
@@ -77,32 +78,49 @@ def health() -> dict:
     return {"status": "ok", "database": "ready"}
 
 
+@router.get("/chat/history", response_model=list[SavedChatTurn])
+def chat_history(user_id: Annotated[str, Depends(current_user_id)]) -> list[dict]:
+    return database.list_chat_turns(database_path(), user_id)
+
+
+@router.delete("/chat/history", status_code=204)
+def clear_chat_history(user_id: Annotated[str, Depends(current_user_id)]) -> Response:
+    database.clear_chat_turns(database_path(), user_id)
+    return Response(status_code=204)
+
+
 @router.post("/chat", response_model=ChatResponse)
 def support_chat(payload: ChatRequest, user_id: Annotated[str, Depends(current_user_id)]) -> dict:
-    context, context_used = database.build_chat_context(database_path(), user_id)
-    if chat.is_crisis_message(payload.message):
-        return {
-            "reply": chat.crisis_reply(),
-            "model": "local-safety-response",
-            "context_used": context_used,
-            "crisis_response": True,
-        }
+    path = database_path()
+    crisis = chat.is_crisis_message(payload.message)
+    if crisis:
+        reply, model = chat.crisis_reply(), "local-safety-response"
+        context_used = {"check_ins": 0, "events": 0, "exercises": 0, "questionnaire": False}
+    else:
+        context, context_used = database.build_chat_context(path, user_id)
+        try:
+            reply, model = chat.request_support_reply(
+                payload.message,
+                [item.model_dump() for item in payload.history],
+                context,
+            )
+        except chat.ChatConfigurationError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except chat.ChatProviderError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    history_saved = True
     try:
-        reply, model = chat.request_support_reply(
-            payload.message,
-            [item.model_dump() for item in payload.history],
-            context,
-        )
-        return {
-            "reply": reply,
-            "model": model,
-            "context_used": context_used,
-            "crisis_response": False,
-        }
-    except chat.ChatConfigurationError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except chat.ChatProviderError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        database.save_chat_turn(path, user_id, payload.message, reply)
+    except database.DataAccessError:
+        history_saved = False
+    return {
+        "reply": reply,
+        "model": model,
+        "context_used": context_used,
+        "crisis_response": crisis,
+        "history_saved": history_saved,
+    }
 
 
 @router.post("/auth/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)

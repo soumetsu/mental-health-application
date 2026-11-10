@@ -264,6 +264,12 @@ class ChatResponse(BaseModel):
     model: str
     context_used: ChatContextUsage
     crisis_response: bool = False
+    history_saved: bool = True
+
+
+class SavedChatTurn(BaseModel):
+    message: str
+    reply: str
 
 
 class HealthResponse(BaseModel):

@@ -260,6 +260,7 @@ function openScreen(destination) {
     </nav>
     <ChatbotWidget
       v-if="user && dashboard && screen !== 'onboarding'"
+      :key="token"
       :token="token"
       :read-aloud="user.read_aloud"
       :voice-input="user.voice_input"

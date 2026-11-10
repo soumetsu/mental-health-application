@@ -4,6 +4,10 @@
   "intro": "I can help you reflect on recent check-ins, events, and exercises. What would feel useful right now?",
   "disclosure": "Not therapy or emergency support. When you send, your message and relevant recent journal entries are sent securely to Gemini for this reply.",
   "voiceDisclosure": "Voice is optional. Raw audio is not saved by this app, but your browser or operating system may process it to create a transcript.",
+  "historyDisclosure": "Your account keeps up to 25 text exchanges in this app's local database, including voice transcripts. Clear them anytime.",
+  "voiceSessionIntro": "Speak naturally, then pause. Your words become text, the AI generates a reply using the same chat context, and your browser reads that reply aloud. The microphone is off during the reply, then listens for your next turn.",
+  "voiceSessionSending": "Starting allows each completed spoken turn to be sent automatically to Gemini with the recent journal context described above. Stop voice session ends listening and playback; a message already sent may still finish in the text chat. Voice stops when you close chat or leave this tab.",
+  "voiceUnavailable": "This browser does not provide the speech recognition and playback needed for a voice session. Text chat remains available. You can try a browser with speech recognition enabled, such as Chrome, though support depends on the browser and device.",
   "quickPrompts": [
     "What did I record today?",
     "Help me reflect on today’s events.",

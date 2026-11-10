@@ -113,7 +113,7 @@ function memberSince(value) {
       <section class="account-section" aria-labelledby="voice-title">
         <div class="section-heading-copy"><p class="eyebrow">Voice</p><h2 id="voice-title">Conversation controls</h2><p>The app does not record or save raw audio. Your browser or operating system may process speech to produce a transcript.</p></div>
         <label class="setting-switch" :class="{ unavailable: !speechInputAvailable }">
-          <span><strong>Enable voice conversation controls</strong><small>{{ speechInputAvailable ? 'Adds microphone and conversation controls to the support chat.' : 'Voice input is not available in this browser. Read aloud may still work.' }}</small></span>
+          <span><strong>Show extra dictation controls</strong><small>{{ speechInputAvailable ? 'Adds dictation for drafting a message before sending. AI voice sessions can also be started directly in chat.' : 'Voice input is not available in this browser. Read aloud may still work.' }}</small></span>
           <input v-model="form.voice_input" :disabled="!speechInputAvailable" type="checkbox" />
         </label>
       </section>

@@ -27,6 +27,9 @@ class NotFoundError(DataAccessError):
     pass
 
 
+CHAT_TURN_LIMIT = 25
+
+
 def _now() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -104,6 +107,13 @@ def initialize_database(database_path: Path) -> None:
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS chat_turns (
+        id INTEGER PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        message TEXT NOT NULL,
+        reply TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_turns_user_id ON chat_turns(user_id, id DESC);
     CREATE INDEX IF NOT EXISTS idx_check_ins_user_created ON check_ins(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_events_user_date ON events(user_id, happened_on DESC, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_exercise_history_user_started ON exercise_history(user_id, started_at DESC);
@@ -514,6 +524,43 @@ def delete_exercise_history(database_path: Path, user_id: str, history_id: str) 
             connection.commit()
     except sqlite3.Error as exc:
         raise DataAccessError("Could not delete exercise history") from exc
+
+
+def list_chat_turns(database_path: Path, user_id: str) -> list[dict]:
+    try:
+        with _connect(database_path) as connection:
+            rows = connection.execute(
+                "SELECT message, reply FROM chat_turns WHERE user_id = ? ORDER BY id DESC LIMIT ?",
+                (user_id, CHAT_TURN_LIMIT),
+            ).fetchall()
+            return [dict(row) for row in reversed(rows)]
+    except sqlite3.Error as exc:
+        raise DataAccessError("Could not load saved chat") from exc
+
+
+def save_chat_turn(database_path: Path, user_id: str, message: str, reply: str) -> None:
+    try:
+        with _connect(database_path) as connection, connection:
+            connection.execute(
+                "INSERT INTO chat_turns (user_id, message, reply) VALUES (?, ?, ?)",
+                (user_id, message[:1200], reply[:4000]),
+            )
+            connection.execute(
+                """DELETE FROM chat_turns WHERE user_id = ? AND id IN (
+                    SELECT id FROM chat_turns WHERE user_id = ? ORDER BY id DESC LIMIT -1 OFFSET ?
+                )""",
+                (user_id, user_id, CHAT_TURN_LIMIT),
+            )
+    except sqlite3.Error as exc:
+        raise DataAccessError("Could not save the chat reply") from exc
+
+
+def clear_chat_turns(database_path: Path, user_id: str) -> None:
+    try:
+        with _connect(database_path) as connection, connection:
+            connection.execute("DELETE FROM chat_turns WHERE user_id = ?", (user_id,))
+    except sqlite3.Error as exc:
+        raise DataAccessError("Could not clear saved chat") from exc
 
 
 def build_chat_context(database_path: Path, user_id: str) -> tuple[dict, dict]:

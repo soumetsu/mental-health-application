@@ -54,6 +54,7 @@ From the repository root:
 Set-Location backend
 & .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 Set-Location ..\frontend
+npm test
 npm run build
 Set-Location ..
 ```
@@ -81,6 +82,7 @@ For an installation smoke check, confirm `/api/health` returns `status: ok`, cre
 - `GET /api/exercises`
 - `GET/POST /api/exercise-history`, `PATCH/DELETE /api/exercise-history/{history_id}`
 - `POST /api/chat` — authenticated supportive reflection using bounded recent app context
+- `GET /api/chat/history`, `DELETE /api/chat/history` — restore or clear the signed-in account's conversation
 
 Exercise timing is recorded internally from start to completion or stop, but duration is intentionally omitted from all browser-facing response models and screens.
 
@@ -95,7 +97,7 @@ GEMINI_MODEL=gemini-3.5-flash-lite
 
 Restart FastAPI after changing `.env`. The key is never returned by the API or exposed through a Vite environment variable. Each request sends the current message, up to ten recent chat messages, and a bounded seven-day summary of the signed-in user's questionnaire, check-ins, events, and exercise history. Requests set provider-side storage to false.
 
-The opening greeting and other introductory chat copy live in `frontend/src/data/chatbot.json`. A fresh lightweight chat session starts with that introduction every time the bubble is opened.
+The opening greeting and other introductory chat copy live in `frontend/src/data/chatbot.json`. Chat restores up to 25 completed exchanges for the signed-in account from SQLite. New exchanges replace the oldest ones at the limit. Saved voice messages are transcripts. Each saved assistant reply is limited to 4,000 characters. The chat menu's **Clear saved chat** action removes the stored conversation. Model requests still include at most 10 recent messages.
 
 This assistant is for supportive reflection only. It is not therapy, diagnosis, medical advice, or emergency support.
 
@@ -113,7 +115,13 @@ Authentication uses process-local bearer sessions. There is no password reset, M
 
 ## Voice and accessibility privacy
 
-Read-aloud uses the browser's speech-synthesis API. Optional dictation and conversation mode use the browser's speech-recognition API when available. The application does not record or store raw audio; it receives only the transcript produced by the browser and sends that text through the existing authenticated chat route. A browser or operating system may process speech using its own service, so voice features require an explicit user action, remain optional, show an in-product disclosure, and always provide stop controls.
+Read-aloud uses the browser's speech-synthesis API. Choose **Try an AI voice session** beside the chat suggestions, review the explanation, and choose **Start microphone**. Each completed spoken turn becomes a transcript and is automatically sent through the existing authenticated Gemini chat route. The AI-generated reply appears in the chat and is spoken using browser speech synthesis; this is a transcript-based AI conversation, not native audio-to-audio model processing. The microphone listens again only after reply playback finishes.
+
+**Stop voice session** ends listening and playback. Closing chat or hiding the tab also stops voice. An already-sent request may still finish in the text chat, but it cannot restart playback after Stop. Unsupported browsers show an explanation and retain text chat. Settings can additionally expose dictation controls that fill a draft without automatically sending it. Voice recognition and playback availability vary by browser/device; a supported API alone does not guarantee a speech service is available.
+
+The application does not record or store raw audio. A browser or operating system may process speech using its own service, so the microphone begins only after an explicit action with an in-product disclosure. Voice uses the same local deterministic crisis-language handling and bounded journal context as text chat; it does not infer mood, diagnosis, or risk from vocal qualities.
+
+`npm test` runs mocked voice lifecycle checks with injected speech recognition, speech playback, and AI responses. It does not access a microphone or call a live model. Real microphone permissions, transcription accuracy, device audio, and live Gemini output need separate manual verification.
 
 Profile photos are resized in the browser and stored as compressed image data in the local SQLite database. The prototype has no external media store, account export, or production privacy controls.
 

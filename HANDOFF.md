@@ -83,7 +83,34 @@ Update this section with exact commands and outcomes after running checks.
 - Authenticated profile/settings smoke flows, microphone permissions, the latest mobile layout changes, and a fresh dependency installation from a clean checkout remain unverified. Build success does not establish those behaviors.
 - README now includes prerequisites, clone/branch selection, virtual environment setup, `npm ci`, environment configuration, startup, local checks, troubleshooting, and explicit clean-checkout verification limits.
 
+## AI voice-session implementation
+
+- Chat now has a bold purple **Try an AI voice session** action next to the suggested-message area. A disclosure panel precedes **Start microphone**; this entry point does not require enabling a preference first.
+- Browser recognition produces visible transcripts. Only final recognized text is sent through the existing authenticated chat API, which retains bounded context and local deterministic crisis-language handling. The resulting AI reply is displayed and read aloud using browser speech synthesis.
+- `frontend/src/services/voiceSession.js` controls listening, AI request, and playback in sequence. Recognition ends before requesting a reply, resumes after playback, and stops on close, hidden tab, permission failure, model failure, playback failure, or explicit Stop. Stale callbacks and late AI responses cannot restart a stopped voice session.
+- Interim-only or empty recognition is not submitted. Transcripts over 1,200 characters remain available for editing instead of being silently truncated or sent. Dictation remains a separate optional draft-only action in Settings.
+- No raw audio recording, new provider, or native model audio processing was added. Browser/vendor speech processing remains disclosed. No inference is made from tone, pitch, speaking speed, or other vocal properties.
+- Verification: `npm test` passed 10 mocked voice tests; backend `& .\.venv\Scripts\python.exe -m unittest discover -s tests -v` passed 4 existing tests; `npm run build` passed with 25 modules transformed. These tests made no live model calls and did not access a microphone.
+- Real microphone permission prompts, browser speech-service availability, transcription accuracy, mobile layout, and live-model voice conversations still need manual verification. A request already sent can finish in text after Stop, but will not play or reopen the microphone.
+
 ## Known demo limitations
+
+### Voice input recovery
+
+- Suggested prompts hide while composing or once the conversation starts. Device dictation controls were removed at the user's request. The frontend build passed after removal.
+
+- The desktop chat panel sits 24 px from the bottom. The launcher is hidden while the panel is open, and focus returns to the launcher on close. The 13 mocked voice tests and production build passed. Live dictation and the desktop layout were not tested in a browser.
+
+- Replaced the generic browser speech error with separate permission, audio capture, speech service, and other recognition messages. A service failure can retry with an already installed on-device language if the browser supports it.
+- Verification: `npm test` passed 12 mocked voice tests, and `npm run build` passed. The original device's microphone error code and live recording remain unverified.
+
+### Saved chat
+
+- **About chat and privacy** collapses the disclosure and saved-chat controls. The frontend production build passed after this change.
+
+- SQLite retains the latest 25 completed exchanges for each authenticated account. Opening chat restores them, and **Clear saved chat** removes them. Voice sessions save transcript text and replies. A failed model request leaves the message available as a draft.
+- Chat history is bounded separately from the 10 recent messages supplied to the model. A history write failure leaves the reply visible and displays a save error. The local crisis response is produced before any provider call.
+- Verification: all five backend tests, all ten mocked voice tests, and the frontend build passed. After restarting both servers, the frontend, backend health endpoint, and Vite-proxied health endpoint returned HTTP 200. The new history routes appeared in OpenAPI and an unauthenticated history request returned HTTP 401.
 
 - Bearer sessions are process-local and disappear when the backend restarts.
 - There is no password reset, verification, MFA, rate limiting, encrypted-at-rest health data, audit trail, export/delete-account flow, or production deployment hardening.
